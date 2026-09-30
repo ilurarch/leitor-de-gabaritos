@@ -1,0 +1,13 @@
+{
+  "versao": "ESCOLAS-V11-20260930",
+  "origem": "https://gabarito-optico.felipebarreto.chatgpt.site/",
+  "commit": "760f718a27d3731bcf72fd17615b6d4a68f51f1f",
+  "recursos": [
+    "Login por escola",
+    "Administração SME26",
+    "Cadastro de escolas",
+    "Firestore leitoroptico",
+    "Exportação XLSX"
+  ],
+  "sha256_index_js": "5b1a3ea4826582c981733100bbc12f789322d366b710d4d76aaa2d3f78142a9f"
+}

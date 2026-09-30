@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import ExcelJS from 'exceljs';
+import {buildSchoolWorkbook} from '../export-school.js';
+const school={name:'Escola Municipal; Teste'},students=[{id:'s1',name:'Nome completo; sem corte '+ 'Á'.repeat(90),grade:'5º ano',classroom:'A',discipline:'Matemática'},{id:'s2',name:'=HYPERLINK("exemplo")',grade:'6',classroom:'B',discipline:'Ciências'}];
+const scans=Array.from({length:121},(_,i)=>({id:`r${i}`,studentId:'s1',name:students[0].name,grade:'5º ano',classroom:'A',discipline:'Matemática',answers:i===120?['D','BRANCO','REVISAR','MULTIPLA']:['A'],count:i===120?60:1,label:'foto; original.png',layout:'GO4',createdAt:{seconds:1700000000+i}}));
+scans.push({id:'unknown',name:'Não identificado',studentId:null,answers:['C'],count:1,createdAt:{seconds:1699999999}});
+const workbook=buildSchoolWorkbook(school,students,scans),buffer=await workbook.xlsx.writeBuffer();assert.equal(buffer[0],80);assert.equal(buffer[1],75);
+const restored=new ExcelJS.Workbook();await restored.xlsx.load(buffer);
+const roster=restored.getWorksheet('Alunos'),history=restored.getWorksheet('Todas as leituras');assert.equal(roster.rowCount,3);assert.equal(history.rowCount,123);assert.equal(roster.getCell('A2').value,school.name);assert.equal(roster.getCell('E2').value,students[0].name);assert.equal(roster.getCell('E3').value,students[1].name);assert.equal(roster.getCell('E3').type,ExcelJS.ValueType.String);assert.equal(roster.getCell('D2').value,'Matemática');assert.equal(roster.getCell('J2').value,'D');assert.equal(roster.getCell('K2').value,'Em branco');assert.equal(roster.getCell('L2').value,'Revisar');assert.equal(roster.getCell('M2').value,'Múltipla');assert.equal(roster.getCell('G3').value,'Sem leitura');assert(!roster.getCell('J3').value);assert.equal(roster.getRow(1).getCell(69).value,'Questão 60');assert.equal(history.getCell('E123').value,'Não identificado');assert(roster.autoFilter);assert(roster.views[0].ySplit===1);
+const empty=buildSchoolWorkbook(school,[],[]);assert.equal(empty.getWorksheet('Alunos').rowCount,1);
+console.log('PASS: real XLSX round-trip, separate cells, full names, literal text, latest answers, no-read students, all 122 readings, 60 legacy questions.');

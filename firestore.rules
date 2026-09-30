@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+ match /databases/{database}/documents {
+  match /leitoroptico/main/schools/{schoolId} {
+   // Owner-requested simple mode: screen passwords are not server authorization.
+   // Public access is limited to this application namespace.
+   allow read: if true;
+   allow create: if request.resource.data.keys().hasOnly(['name','passwordHash','passwordSalt','createdAt']) && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 120 && request.resource.data.passwordHash is string && request.resource.data.passwordHash.size() == 64 && request.resource.data.passwordSalt is string && request.resource.data.passwordSalt.size() == 36 && request.resource.data.createdAt == request.time;
+   allow update, delete: if false;
+   match /roster/current {
+    allow read: if true;
+    allow create, update: if request.resource.data.keys().hasOnly(['students','revision','updatedAt','updatedBy']) && request.resource.data.students is list && request.resource.data.students.size() <= 500 && request.resource.data.revision is int && request.resource.data.revision > 0 && request.resource.data.updatedAt == request.time && request.resource.data.updatedBy is string;
+   }
+   match /scans/{scanId} {
+    allow read: if true;
+    allow create: if request.resource.data.keys().hasOnly(['studentId','name','grade','classroom','discipline','answers','count','layout','label','createdAt','createdBy']) && request.resource.data.answers is list && request.resource.data.count is int && request.resource.data.count >= 1 && request.resource.data.count <= 60 && request.resource.data.answers.size() == request.resource.data.count && request.resource.data.answers.hasOnly(['A','B','C','D','BRANCO','REVISAR','MULTIPLA']) && request.resource.data.createdAt == request.time && request.resource.data.createdBy is string;
+   }
+  }
+ }
+}

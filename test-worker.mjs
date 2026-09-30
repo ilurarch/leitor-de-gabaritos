@@ -1,0 +1,12 @@
+import {Worker} from 'node:worker_threads';
+import {pathToFileURL} from 'node:url';
+import {resolve} from 'node:path';
+import {createCanvas} from '@napi-rs/canvas';
+import assert from 'node:assert/strict';
+import {sheet,testAnswers} from './sheet.js';
+globalThis.document={createElement:()=>createCanvas(1,1)};
+const c=await sheet({count:20},testAnswers(20)),image=c.getContext('2d').getImageData(0,0,c.width,c.height);
+const pixels=new Uint8ClampedArray(image.data);
+const entry=pathToFileURL(resolve('omr-worker.js')).href;
+const worker=new Worker(`const {parentPort}=require('node:worker_threads');globalThis.self={postMessage:(data,transfer)=>parentPort.postMessage(data,transfer)};import(${JSON.stringify(entry)}).then(()=>{parentPort.on('message',data=>self.onmessage({data}));parentPort.postMessage({ready:true});});`,{eval:true});
+try{await new Promise((resolve,reject)=>{worker.once('message',resolve);worker.once('error',reject);});const result=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('worker timeout')),15000);worker.once('message',r=>{clearTimeout(timer);resolve(r);});worker.postMessage({id:1,image:{width:c.width,height:c.height,data:pixels}},[pixels.buffer]);});assert(!result.error,result.error);assert.deepEqual(result.result.answers,testAnswers(20));assert.equal(result.result.out.data.length,1260*1782*4);assert.equal(result.result.alignment,'frame');const live=await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('locate timeout')),15000);worker.once('message',r=>{clearTimeout(timer);resolve(r);});worker.postMessage({id:2,operation:'locate',image:{width:c.width,height:c.height,data:new Uint8ClampedArray(image.data)}});});assert(live.location.found);assert(live.location.ready);assert(live.location.identified);assert.equal(live.location.points.length,4);const blank=new Uint8ClampedArray(image.data);for(let y=100;y<350;y++)for(let x=900;x<1155;x++){const i=(y*c.width+x)*4;blank[i]=blank[i+1]=blank[i+2]=255;}const invalid=await new Promise(resolve=>{worker.once('message',resolve);worker.postMessage({id:3,operation:'locate',image:{width:c.width,height:c.height,data:blank}});});assert(invalid.location.found);assert(!invalid.location.ready);assert(!invalid.location.identified);console.log('PASS: worker compilado localizou a moldura ao vivo, leu a folha e transferiu o resultado.');}finally{await worker.terminate();}

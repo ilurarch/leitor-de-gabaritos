@@ -1,0 +1,18 @@
+import {JSDOM} from 'jsdom';
+import {build} from 'esbuild';
+import {readFileSync} from 'node:fs';
+import {resolve} from 'node:path';
+import {webcrypto} from 'node:crypto';
+import assert from 'node:assert/strict';
+import {DOMMatrix,ImageData,Path2D} from '@napi-rs/canvas';
+const built=await build({entryPoints:['app-src.js'],bundle:true,format:'iife',write:false,plugins:[{name:'test-services',setup(b){b.onResolve({filter:/firebase-client\.js$/},()=>({path:resolve('tests/firebase-ui-mock.js')}));}}]});
+const dom=new JSDOM(readFileSync('index.html','utf8'),{url:'http://localhost/',runScripts:'outside-only',pretendToBeVisual:true});const w=dom.window;
+Object.defineProperty(w,'crypto',{value:webcrypto});w.DOMMatrix=DOMMatrix;w.ImageData=ImageData;w.Path2D=Path2D;w.TextEncoder=TextEncoder;w.TextDecoder=TextDecoder;w.structuredClone=structuredClone;w.URL.createObjectURL=()=>'';
+w.HTMLCanvasElement.prototype.getContext=()=>({drawImage(){},fillRect(){},clearRect(){},fillText(){},beginPath(){},arc(){},stroke(){},fill(){},save(){},restore(){},setLineDash(){},strokeRect(){},measureText:()=>({width:50}),createImageData:(a,b)=>({data:new Uint8ClampedArray(a*b*4)})});w.HTMLCanvasElement.prototype.toDataURL=()=>'';w.HTMLElement.prototype.scrollIntoView=()=>{};
+w.eval(built.outputFiles[0].text);const $=id=>w.document.getElementById(id);const wait=()=>new Promise(r=>setTimeout(r,120));await wait();
+assert.equal($('organization'),null);assert.equal($('subtitle'),null);assert($('schoolWorkspace').hidden);
+$('loginSchool').value='school-a';$('schoolPassword').value='senha123';$('schoolLoginForm').dispatchEvent(new w.Event('submit',{cancelable:true}));await wait();assert(!$('schoolWorkspace').hidden);
+$('manualGrade').value='5º ano';$('manualClass').value='A';$('manualDiscipline').value='Matemática';$('manualName').value='Ana';$('manualStudent').dispatchEvent(new w.Event('submit',{cancelable:true}));await wait();assert.match($('rosterTable').textContent,/Matemática/);assert.match($('rosterTable').textContent,/Ana/);
+$('logout').click();await wait();assert($('schoolWorkspace').hidden);assert.equal($('rosterTable').textContent,'');
+$('masterPassword').value='SME26';$('masterLoginForm').dispatchEvent(new w.Event('submit',{cancelable:true}));await wait();assert(!$('adminPanel').hidden);assert.match($('adminSchools').textContent,/Escola/);
+dom.window.close();console.log('PASS: DOM flows for login, school roster with discipline, logout cleanup and master area (mock backend).');

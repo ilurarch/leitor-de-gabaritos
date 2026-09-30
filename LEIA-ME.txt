@@ -1,1 +1,11 @@
-Extraia este ZIP e envie a pasta inteira ao Netlify (Deploy manually). index.html deve ficar na raiz. Preserve index.js, index.css, omr-worker.js e a pasta vendor. Nao precisa executar build.
+VERSÃO ESCOLAS V11 — 30/09/2026
+
+Esta versão tem login, administração SME26, cadastro de escolas, banco leitoroptico e exportação Excel.
+
+NETLIFY MANUAL: extraia este ZIP em uma PASTA NOVA. Envie a pasta inteira que contém index.html na raiz. Não misture com arquivos antigos.
+
+GITHUB PAGES: envie os arquivos extraídos à raiz de um repositório novo; em Settings > Pages escolha Deploy from a branch, main e /(root).
+
+Verificação: a primeira tela deve ter a lista de escolas, senha e Área administrativa. O endereço /versao.json identifica ESCOLAS-V11-20260930.
+
+Não exige variáveis de ambiente. A senha simples é verificada na interface; não é proteção de servidor. O Firebase precisa permitir as operações conforme firestore.rules.

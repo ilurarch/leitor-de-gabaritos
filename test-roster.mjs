@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import readExcelFile from 'read-excel-file/node';
-import {parseCsv,importStudents} from './roster.js';
+import {parseCsv,importStudents,saveManualStudent} from './roster.js';
 import {sheet} from './sheet.js';
 import {readSheet} from './reader.js';
 import {W,H,detectMarkers} from './engine.js';
@@ -8,13 +8,17 @@ import {createCanvas} from '@napi-rs/canvas';
 import {writeFileSync} from 'node:fs';
 import {jsPDF} from 'jspdf';
 globalThis.document={createElement:()=>createCanvas(1,1)};
-const rows=parseCsv('\ufeffESCOLA;SÉRIE;TURMA;NOME\r\n"Escola; teste";5º ano;A;Ana\r\nEscola B;6º ano;B;João\r\n');
+const rows=parseCsv('\ufeffESCOLA;SÉRIE;TURMA;DISCIPLINA;NOME\r\n"Escola; teste";5º ano;A;Matemática;Ana\r\nEscola B;6º ano;B;Matemática;João\r\n');
 const students=await importStudents(rows);assert.equal(students.length,2);assert.equal(students[0].school,'Escola; teste');assert.deepEqual(await importStudents(rows),students);
 await assert.rejects(importStudents([['ESCOLA','NOME'],['Escola','Nome']]),/Colunas ausentes/);
-await assert.rejects(importStudents([['ESCOLA','SÉRIE','TURMA','NOME'],['Escola','5','A','']]),/Linha 2/);
+await assert.rejects(importStudents([['ESCOLA','SÉRIE','TURMA','DISCIPLINA','NOME'],['Escola','5','A','Matemática','']]),/Linha 2/);
 const duplicate=await importStudents([rows[0],rows[1],rows[1]]);assert.notEqual(duplicate[0].id,duplicate[1].id);
 const sheets=await readExcelFile('tests/fixtures/alunos-teste.xlsx');const roster=await importStudents(sheets[0].data);assert.equal(roster.length,2);assert.equal(roster[1].name,'João de Teste');
 const pdf=new jsPDF({unit:'mm',format:'a4'});
 for(let i=0;i<roster.length;i++){const c=await sheet({count:20,student:roster[i]},i===1?['A','D','B','C']:undefined),pixels=c.getContext('2d').getImageData(0,0,W,H),r=readSheet(pixels,detectMarkers(pixels));assert.equal(r.studentId,roster[i].id);if(i===0)assert(r.answers.every(a=>a==='BRANCO'));else assert.deepEqual(r.answers.slice(0,4),['A','D','B','C']);if(i)pdf.addPage();pdf.addImage(c.toDataURL('image/png'),'PNG',0,0,210,297);}
 writeFileSync('tmp/roster-cards.pdf',Buffer.from(pdf.output('arraybuffer')));
 console.log('PASS: XLSX/CSV, campos, IDs, erros, folha em branco e preenchimento individual.');
+
+const manuallyAdded=await saveManualStudent([],['Escola; teste','5º ano','A','Matemática','Ana']);assert.equal(manuallyAdded.students[0].id,students[0].id);const edited=await saveManualStudent(manuallyAdded.students,['Outra escola','6º ano','C','Matemática','Ana'],0);assert.equal(edited.students.length,1);assert.equal(edited.students[0].classroom,'C');await assert.rejects(saveManualStudent([],['Escola','5','A','Matemática','']),/NOME/);console.log('PASS: cadastro manual e planilha usam a mesma validação e identificação.');
+
+assert.equal(students[0].discipline,"Matemática");await assert.rejects(importStudents([["ESCOLA","SÉRIE","TURMA","DISCIPLINA","NOME"],["Escola","5","A","","Ana"]]),/DISCIPLINA/);
